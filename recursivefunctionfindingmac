@@ -1,0 +1,67 @@
+import re
+import netmiko
+
+#las variables tienen todas sus letras mayúsculas
+
+def BUSQUEDAFREGONA(DICCIONARIO,MAC,IP):
+    #aqui puse variables para guardar la informacion que encontraba del dispositivo
+    TABLEINFO=""
+    MACLIST=()
+    PORTLIST=()
+    IPLIST=()
+    STRPORT=""
+    print("conectando con el siguiente dispositivo...")
+    CONEXION= netmiko.ConnectHandler(**DICCIONARIO) #este es el que hace la conexion al dispositivo, la direccion de la red que configuramos es 192.168.0.0 255.255.255.0
+    print("conexion exitosa!")
+    TABLEINFO= CONEXION.send_command("show mac address-table")#guardo la tabla arp en una cadena
+    MACLIST = re.findall("[a-f0-9]\w+\.+[a-f0-9]\w+\.+[a-f0-9]\w+",TABLEINFO)#guardo las direcciones mac en una lista
+    print("--------------------------------------------------------------------------------------")
+    print("LISTA DE MAC ADDRESS DEL NODO "+IP)
+    for a in range(len(MACLIST)):
+        print(MACLIST[a])#imprimo las direcciones mac conocidas en el dispositivo una por una
+    print("--------------------------------------------------------------------------------------")
+    TABLEINFO= CONEXION.send_command("show mac address-table address "+MAC)
+    print("show mac address-table address "+MAC)
+    print(TABLEINFO)
+    PORTLIST=re.findall("(\w+\d+\/+\d+(\/+\d+)?)",TABLEINFO)#busco especificamente esa direccion mac y guardo el puerto 
+    print("Puertos en los que se encuentra el nodo")
+    for a in range(len(PORTLIST)):
+        print(PORTLIST[a])
+    print("--------------------------------------------------------------------------------------")
+    if (len(PORTLIST))==0:
+        print("En este dispositivo no se encuentra la direccion mac: "+MAC)#valido si no hay ningun puerto con esa direccion mac 
+    else:
+        STRPORT=PORTLIST[0]
+        print("AQUITA:")
+        print(STRPORT)
+        TABLEINFO=CONEXION.send_command("show cdp neighbor "+STRPORT[0]+" detail")#busco si existe un vecino
+        print("show cdp neighbor "+STRPORT[0]+" detail")
+        if len(TABLEINFO)==0:
+            print("La direccion mac: "+MAC+" esta en el puerto "+STRPORT[0]+" del dispositivo que tiene la IP: "+IP)#si ve la mac en ese puerto pero no es vecino entonces es el nodo conectado a ese puerto
+        else:
+            IPLIST=re.findall("\d+\.+\d+\.+\d+\.+\d+",TABLEINFO)#si existe un vecino, entonces jalo la direccion ip del nodo, la guardo y vuelvo a invocar esta funcion para mandarle la informacion del vecino invocando la funcion a si misma
+            IP=IPLIST[0]
+            DATOSCONEXION={
+            'device_type':'cisco_ios',
+            'host':IP,
+            'username':'cisco',
+            'password':'cisco'}
+            BUSQUEDAFREGONA(DATOSCONEXION,MAC,IP)
+    pass
+
+
+
+
+print("BIENVENIDO A NUESTRA BUSQUEDA DE NODOS :D")
+MACADDRESS= input("direccion mac que quieres buscar: ")
+print("vamos a empezar.")
+
+DIRECCIONIP='192.168.0.1'
+DATOSCONEXION={
+    'device_type':'cisco_ios',
+    'host':DIRECCIONIP,
+    'username':'cisco',
+    'password':'cisco'}
+
+BUSQUEDAFREGONA(DATOSCONEXION,MACADDRESS,DIRECCIONIP)
+print("se ha terminado la busqueda :D BYE")
